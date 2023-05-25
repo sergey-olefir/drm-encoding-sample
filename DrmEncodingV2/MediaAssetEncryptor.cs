@@ -1,19 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Threading.Tasks;
-
-using Brainstorm.QuickHelp.Azure.MediaServices.Interfaces;
-
+﻿using System.Security.Cryptography;
 using Microsoft.WindowsAzure.MediaServices.Client;
 using Microsoft.WindowsAzure.MediaServices.Client.ContentKeyAuthorization;
 using Microsoft.WindowsAzure.MediaServices.Client.DynamicEncryption;
 using Microsoft.WindowsAzure.MediaServices.Client.Widevine;
-
 using Newtonsoft.Json;
 
-namespace Brainstorm.QuickHelp.Azure.MediaServices
+namespace DrmEncodingV2
 {
     public class MediaAssetEncryptor : IMediaAssetEncryptor
     {

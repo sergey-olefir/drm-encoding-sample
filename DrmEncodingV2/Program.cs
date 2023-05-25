@@ -1,47 +1,26 @@
-﻿// Create ContentKeyAuthorizationPolicy
+﻿using DrmEncoding;
+using DrmEncodingV2;
+using Microsoft.Extensions.Configuration;
+using Microsoft.WindowsAzure.MediaServices.Client;
 
-using System.Security.Cryptography.X509Certificates;
+var config = new AmsConfig(new ConfigurationBuilder()
+    .SetBasePath(Directory.GetCurrentDirectory())
+    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+    .AddEnvironmentVariables()
+    .Build());
 
-string jwtAuthorizationPolicy = "JWT Authorization Policy";
-  IContentKeyAuthorizationPolicy policy = await objCloudMediaContext.ContentKeyAuthorizationPolicies.CreateAsync(jwtAuthorizationPolicy);
+var client = MediaServiceBuilder.CreateMediaServicesClientAsync(config);
+Console.WriteLine("connected");
 
-  List<ContentKeyAuthorizationPolicyRestriction> restrictions = new List<ContentKeyAuthorizationPolicyRestriction>();
+var key = Guid.NewGuid().ToString()[..4];
+var policyName = $"drm-async-{key}";
 
-  //Class is used to represent ContentKeyAuthorizationPolicyRestriction.Requerements
-  TokenRestrictionTemplate restrictionTemplate = new TokenRestrictionTemplate();
+Console.WriteLine($"Key -> {key}");
 
-  //Specifies which token format will be used in token reques: TokenType.JWT or TokenType.SWT
-  restrictionTemplate.TokenType = TokenType.JWT;
+const string outputAsset = "asset-51902-outputs";
+var locatorName = $"asset-51902-outputs-locator-async-{key}";
 
-  //Instructing that token is signed with assymmetric key
-  var templatex509Certificate2 = new X509Certificate2("cer.pfx", "certPassword");
-
-  TokenRestrictionTemplate tokenRestrictionTemplate = new TokenRestrictionTemplate();
-  tokenRestrictionTemplate.PrimaryVerificationKey = new X509CertTokenVerificationKey(templatex509Certificate2);
-
-  //Specify that only tokens issued to specific aufience will be valid for content key delivery
-  restrictionTemplate.Audience = new Uri("http://myaudience");
-
-  //Instructing that only tokens issues by specific issuer will be valid for content key delivery
-  restrictionTemplate.Issuer = new Uri("http://someIdentityserver");
+client.Assets.FirstOrDefault();
 
 
-  //Initilizing ContentKeyAuthorizationPolicyRestriction
-  ContentKeyAuthorizationPolicyRestriction restriction = new ContentKeyAuthorizationPolicyRestriction
-  {
-      Name = "Authorization Policy with Token Restriction",
-      KeyRestrictionType = (int)ContentKeyRestrictionType.TokenRestricted,
-      Requirements = TokenRestrictionTemplateSerializer.Serialize(restrictionTemplate)};
-
-  restrictions.Add(restriction);
-
-  //Saving IContentKeyAuthorizationPolicyOption on server so it can be associated with IContentKeyAuthorizationPolicy
-  IContentKeyAuthorizationPolicyOption policyOption = objCloudMediaContext.ContentKeyAuthorizationPolicyOptions.Create("myDynamicEncryptionPolicy", ContentKeyDeliveryType.BaselineHttp, restrictions, String.Empty);
-  policy.Options.Add(policyOption);
-
-  //Saving Policy
-  policy.UpdateAsync();
-
-  // Add IContentKeyAuthorizationPolicy to ContentKey
-  objIContentKey.AuthorizationPolicyId = policy.Id;
-  IContentKey IContentKeyUpdated = await objIContentKey.UpdateAsync();
+IAsset asset = client.Assets.First(x => x.Name == outputAsset);

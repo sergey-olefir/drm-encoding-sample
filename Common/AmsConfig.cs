@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Configuration;
 
-namespace DrmEncoding
+namespace Common
 {
     public class AmsConfig
     {
@@ -19,6 +19,10 @@ namespace DrmEncoding
 
         public string AadTenantId => this._config["AadTenantId"];
 
+        public string AadTenantDomain => this._config["AadTenantDomain"];
+
+        public string AadUrl => this._config["AadUrl"];
+
         public string AadClientId => this._config["AadClientId"];
 
         public string AadSecret => this._config["AadSecret"];
@@ -28,9 +32,5 @@ namespace DrmEncoding
         public Uri AadEndpoint => new Uri(this._config["AadEndpoint"]);
 
         public Uri ArmEndpoint => new Uri(this._config["ArmEndpoint"]);
-
-        public string Location => this._config["Location"];
-
-        public string SymmetricKey => this._config["SymmetricKey"];
     }
 }

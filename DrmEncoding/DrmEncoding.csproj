@@ -5,11 +5,13 @@
         <TargetFramework>net6.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <UserSecretsId>21f8cd5e-1739-4195-8c0b-3a1ea02bc6b0</UserSecretsId>
     </PropertyGroup>
 
     <ItemGroup>
         <PackageReference Include="Azure.Storage.Blobs" Version="12.15.1" />
         <PackageReference Include="Microsoft.Azure.Management.Media" Version="5.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="7.0.0" />
         <PackageReference Include="Microsoft.Identity.Client" Version="4.51.0" />
         <PackageReference Include="System.IdentityModel.Tokens.Jwt " Version="5.3.0" />
         <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="6.27.0" />
@@ -28,5 +30,12 @@
       <None Update="cert.pfx">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
+      <None Update="verification2037.pfx">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Common\Common.csproj" />
     </ItemGroup>
 </Project>

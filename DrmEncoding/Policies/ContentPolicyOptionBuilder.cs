@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using DrmEncoding.WidevineConfig;
 using Microsoft.Azure.Management.Media.Models;
@@ -6,13 +7,13 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace DrmEncoding.Policies
 {
-    public class ContentPolicyOptionsAsync
+    public class ContentPolicyOptionBuilder
     {
         private readonly string _base64;
         private const string Issuer = "iss";
         private const string Audience = "aud";
 
-        public ContentPolicyOptionsAsync()
+        public ContentPolicyOptionBuilder()
         {
             this._base64 = @"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtAc7v06Ud4YL+6AYjiKP
                 nLpx7TtfBZfozQVi5pRCi5FM5NBDjtg7+F+mUjyHHDPw4AyQdyVTuFlyMcRI+NCm
@@ -25,7 +26,7 @@ namespace DrmEncoding.Policies
 
         public List<ContentKeyPolicyOption> ContentKeyPolicyOptions()
         {
-            var crt = new X509Certificate2("cert.pfx", "qwerty1");
+            var crt = new X509Certificate2("verification2037.pfx", "password$1");
             var key = new ContentKeyPolicyX509CertificateTokenKey(crt.RawData);
 
             var requiredClaims = new List<ContentKeyPolicyTokenClaim>();
@@ -33,42 +34,45 @@ namespace DrmEncoding.Policies
             {
                 new ContentKeyPolicySymmetricTokenKey(Convert.FromBase64String(this._base64))
             };
-            ContentKeyPolicyTokenRestriction restriction
-                = new ContentKeyPolicyTokenRestriction(Issuer, Audience, key, ContentKeyPolicyRestrictionTokenType.Jwt, alternateKeys, requiredClaims);
 
-            ContentKeyPolicyPlayReadyConfiguration playReadyConfig = this.ConfigurePlayReadyLicenseTemplate();
-            ContentKeyPolicyWidevineConfiguration widevineConfig = ConfigureWidevineLicenseTemplate();
+            var restriction = new ContentKeyPolicyTokenRestriction(
+                Issuer,
+                Audience,
+                key,
+                ContentKeyPolicyRestrictionTokenType.Jwt,
+                alternateKeys,
+                requiredClaims);
+
+            var playReadyConfig = ConfigurePlayReadyLicenseTemplate();
+            var widevineConfig = ConfigureWidevineLicenseTemplate();
 
             return new List<ContentKeyPolicyOption>
             {
-                new ()
-                {
-                    Configuration = playReadyConfig,
-                    Restriction = restriction
-                },
-                new ()
-                {
-                    Configuration = widevineConfig,
-                    Restriction = restriction
-                }
+                new () { Configuration = playReadyConfig, Restriction = restriction },
+                new () { Configuration = widevineConfig, Restriction = restriction }
             };
         }
 
-        public string GeneratePrimaryToken(int expireHours)
+        public string GeneratePrimaryToken(string keyIdentifier)
         {
-            var crt = new X509Certificate2("cert.pfx", "qwerty1");
+            var crt = new X509Certificate2("verification2037.pfx", "password$1");
             var privateKey = new X509SecurityKey(crt);
 
             SigningCredentials cred = new SigningCredentials(
                 privateKey,
-                // Use the  HmacSha256 and not the HmacSha256Signature option, or the token will not work!
-                SecurityAlgorithms.RsaSha256Signature);
+                SecurityAlgorithms.RsaSha256);
+
+            var claims = new List<Claim>
+            {
+                new Claim(ContentKeyPolicyTokenClaim.ContentKeyIdentifierClaim.ClaimType, keyIdentifier)
+            };
 
             JwtSecurityToken tokenDescriptor = new JwtSecurityToken(
                 issuer: Issuer,
                 audience: Audience,
+                claims: claims,
                 notBefore: DateTime.Now.AddMinutes(-5),
-                expires: DateTime.Now.AddHours(expireHours),
+                expires: DateTime.Now.AddMinutes(60),
                 signingCredentials: cred);
 
             JwtSecurityTokenHandler handler = new JwtSecurityTokenHandler();
@@ -82,7 +86,6 @@ namespace DrmEncoding.Policies
 
             SigningCredentials cred = new SigningCredentials(
                 tokenSigningKey,
-                // Use the  HmacSha256 and not the HmacSha256Signature option, or the token will not work!
                 SecurityAlgorithms.HmacSha256,
                 SecurityAlgorithms.Sha256Digest);
 
@@ -103,7 +106,7 @@ namespace DrmEncoding.Policies
         /// </summary>
         /// <returns></returns>
         //<ConfigurePlayReadyLicenseTemplate>
-        private ContentKeyPolicyPlayReadyConfiguration ConfigurePlayReadyLicenseTemplate()
+        private static ContentKeyPolicyPlayReadyConfiguration ConfigurePlayReadyLicenseTemplate()
         {
             var objContentKeyPolicyPlayReadyLicense = new ContentKeyPolicyPlayReadyLicense
             {
@@ -161,7 +164,7 @@ namespace DrmEncoding.Policies
                 }
             };
 
-            ContentKeyPolicyWidevineConfiguration objContentKeyPolicyWidevineConfiguration = new ContentKeyPolicyWidevineConfiguration
+            var objContentKeyPolicyWidevineConfiguration = new ContentKeyPolicyWidevineConfiguration
             {
                 WidevineTemplate = Newtonsoft.Json.JsonConvert.SerializeObject(template)
             };

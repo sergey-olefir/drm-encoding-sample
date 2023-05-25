@@ -1,4 +1,5 @@
-﻿using DrmEncoding.Policies;
+﻿using Common;
+using DrmEncoding.Policies;
 using Microsoft.Azure.Management.Media;
 using Microsoft.Azure.Management.Media.Models;
 using Microsoft.Extensions.Configuration;
@@ -15,33 +16,37 @@ namespace DrmEncoding
             var config = new AmsConfig(new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
                 .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                .AddUserSecrets(typeof(Program).Assembly, optional: true)
                 .AddEnvironmentVariables()
                 .Build());
 
-            var client = await MediaServiceBuilder.CreateMediaServicesClientAsync(config);
-            Console.WriteLine("connected");
+            var builder = new MediaServiceBuilder();
+            var client = await builder.CreateMediaServicesClientAsync(config);
 
-            //var tokenAsync = new ContentPolicyOptionsSync().GetTokenAsync("9dc30944-3d73-4a04-b9c4-2c227eeeed8a");
-            //Console.WriteLine(tokenAsync);
+            var policy = await client.ContentKeyPolicies.GetPolicyPropertiesWithSecretsAsync(config.ResourceGroup, config.AccountName, "drm-async-e74c");
 
             var key = Guid.NewGuid().ToString()[..4];
             var policyName = $"drm-async-{key}";
 
             Console.WriteLine($"Key -> {key}");
-            await GetOrCreateContentKeyPolicyAsync(client, config.ResourceGroup, config.AccountName, policyName);
 
-            const string outputAsset = "asset-51902-outputs";
-            var locatorName = $"asset-51902-outputs-locator-async-{key}";
+            var options = new ContentPolicyOptionBuilder().ContentKeyPolicyOptions();
+            await client.ContentKeyPolicies.CreateOrUpdateAsync(config.ResourceGroup, config.AccountName, policyName, options);
+
+            var assetId = "53249";
+            var outputAsset = $"asset-{assetId}-outputs";
+            var locatorName = $"asset-{assetId}-outputs-locator-async-{key}";
+
             var locator = await CreateStreamingLocatorAsync(client, config.ResourceGroup, config.AccountName, outputAsset, locatorName, policyName);
 
             // In this example, we want to play the PlayReady (CENC) encrypted stream.
             // We need to get the key identifier of the content key where its type is CommonEncryptionCenc.
-             string keyIdentifier = locator.ContentKeys.First(k => k.Type == StreamingLocatorContentKeyType.CommonEncryptionCenc).Id.ToString();
+            string keyIdentifier = locator.ContentKeys.First(k => k.Type == StreamingLocatorContentKeyType.CommonEncryptionCenc).Id.ToString();
 
-             Console.WriteLine($"KeyIdentifier = {keyIdentifier}");
+            Console.WriteLine($"KeyIdentifier = {keyIdentifier}");
 
             // In order to generate our test token we must get the ContentKeyId to put in the ContentKeyIdentifierClaim claim.
-            //string token = GetTokenAsync(Issuer, Audience, keyIdentifier, _tokenSigningKey);
+            // string token = GetTokenAsync(Issuer, Audience, keyIdentifier, _tokenSigningKey);
 
             string dashPath = await GetDASHStreamingUrlAsync(client, config.ResourceGroup, config.AccountName, locator.Name);
 
@@ -54,39 +59,14 @@ namespace DrmEncoding
             Console.WriteLine($"https://ampdemo.azureedge.net/?url={dashPath}&playready=true&widevine=true");
             Console.WriteLine();
 
-            Console.WriteLine($"Bearer {new ContentPolicyOptionsAsync().GeneratePrimaryToken(4)}");
-            Console.WriteLine($"Bearer {new ContentPolicyOptionsAsync().GenerateSecondaryToken()}");
+            Console.WriteLine($"Bearer {new ContentPolicyOptionBuilder().GeneratePrimaryToken(keyIdentifier)}");
+            Console.WriteLine($"Bearer {new ContentPolicyOptionBuilder().GenerateSecondaryToken()}");
 
             Console.WriteLine("When finished testing press enter to cleanup.");
             await Console.Out.FlushAsync();
             Console.ReadLine();
         }
-        // </RunAsync>
-
-        /// <summary>
-        /// Create the content key policy that configures how the content key is delivered to end clients
-        /// via the Key Delivery component of Azure Media Services.
-        /// </summary>
-        /// <param name="client">The Media Services client.</param>
-        /// <param name="resourceGroupName">The name of the resource group within the Azure subscription.</param>
-        /// <param name="accountName"> The Media Services account name.</param>
-        /// <param name="contentKeyPolicyName">The name of the content key policy resource.</param>
-        /// <returns></returns>
-        // <GetOrCreateContentKeyPolicy>
-        private static async Task GetOrCreateContentKeyPolicyAsync(
-            IAzureMediaServicesClient client,
-            string resourceGroupName,
-            string accountName,
-            string contentKeyPolicyName)
-        {
-            //var options = new ContentPolicyOptionsAsync().ContentKeyPolicyOptions();
-            var options = new ContentPolicyOptionsAsync().ContentKeyPolicyOptions();
-
-            await client.ContentKeyPolicies.CreateOrUpdateAsync(resourceGroupName, accountName, contentKeyPolicyName, options);
-        }
-
-        // </GetOrCreateContentKeyPolicy>
-
+        // </RunAsync>s
 
         /// <summary>
         /// Creates a StreamingLocator for the specified asset and with the specified streaming policy name.
@@ -121,7 +101,7 @@ namespace DrmEncoding
                     AssetName = assetName,
                     // "Predefined_MultiDrmCencStreaming" policy supports envelope and cenc encryption
                     // And sets two content keys on the StreamingLocator
-                    StreamingPolicyName = "Predefined_MultiDrmCencStreaming",
+                    StreamingPolicyName = "Predefined_MultiDrmStreaming",
                     DefaultContentKeyPolicyName = contentPolicyName
                 });
 
